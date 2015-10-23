@@ -1,11 +1,10 @@
 # Reverse 200
-
 ```
 ./r200
 Enter the password: password!
 Incorrect password!
 ```
-Just like re100, we need to make the return value of ptrace 0
+Just like re100, we need to make the return value of ptrace 0 to debug it
 ```
    0x00400878:	call   0x400600 <ptrace@plt>
    0x0040087d:	test   rax,rax
@@ -47,6 +46,7 @@ the first thing in main is a loop that calls malloc 10 times:
 `==< 0x004008f8  jle 0x4008ad 
 ```
 I split the code into 6 pieces:
+
 1. malloc 16 bytes, store the pointer in rbp-malloced
 2. move the count into the first dword
 3. move the count + 0x6d into the following byte
@@ -54,14 +54,79 @@ I split the code into 6 pieces:
 5. store the address of malloced into that variable
 6. increment, check if 10, continue
 
-It's creating a linked list, and each element contains the index and the index + 0x6d
+It's creating a linked list, and each element contains the index and the index + 0x6d. Thaese numbers are all in ascii range, m n o p q r s t u v. Then we input 7 characters, and call 0x40074d. This function loops through each character of input, and for each character through the linked list.
 
-then it asks for 7 characters of input:
+It loops through the linked list until it find the current character of our input, then records the index of the list node and stores it in a variable, continuing to the next character. If the character is not in the linked list it stores a 0 instead.
 ```
-0x00400914   mov esi, 7
-0x00400919   mov rdi, rax
-0x0040091c   call sym.imp.fgets 
+         ; load the front of the linked list and loop
+     ,=< 0x004007ad  jmp 0x40080d                       
+.------> 0x004007af  mov rax, qword [rip + 0x2008ca] ; [0x601080:8]
+|    |   0x004007b6  mov qword [rbp-list_node], rax 
+|    |   0x004007ba  mov dword [rbp-node_index], 0
+|   ,==< 0x004007c1  jmp 0x4007f6
+||  ||   ; compare the input character to the current node
+|.-----> 0x004007c3  mov rax, qword [rbp-list_node]
+||  ||   0x004007c7  movzx edx, byte [rax + 4]
+||  ||   0x004007cb  mov eax, dword [rbp-index]
+||  ||   0x004007ce  movsxd rcx, eax
+||  ||   0x004007d1  mov rax, qword [rbp-input] 
+||  ||   0x004007d5  add rax, rcx
+||  ||   0x004007d8  movzx eax, byte [rax]
+||  ||   0x004007db  cmp dl, al
+|| ,===< 0x004007dd  jne 0x4007ea
+|| |||   ; if the characters match, store the index in a local variable
+|| |||   0x004007df  mov rax, qword [rbp-list_node]
+|| |||   0x004007e3  mov eax, dword [rax]
+|| |||   0x004007e5  mov dword [rbp-node_index], eax
+||,====< 0x004007e8  jmp 0x4007fd
+||||     ; otherwise, get the next node
+|||`---> 0x004007ea  mov rax, qword [rbp-list_node]
+||| ||   0x004007ee  mov rax, qword [rax + 8]
+||| ||   0x004007f2  mov qword [rbp-list_node], rax
+||| ||   ; check if we have reached the last node
+||| `--> 0x004007f6  cmp qword [rbp-list_node], 0
+|`=====< 0x004007fb  jne 0x4007c3
+| |  |   ; if we're at the end, store the saved index in another variable
+| `----> 0x004007fd  mov eax, dword [rbp-index]
+|    |   0x00400800  cdqe
+|    |   0x00400802  mov edx, dword [rbp-node_index]
+|    |   0x00400805  mov dword [rbp + rax*4 - 0x40], edx
+|    |   0x00400809  add dword [rbp-index], 1
+|    |   ; check if we've gone through 6 characters
+|    `-> 0x0040080d  cmp dword [rbp-index], 5
+`======< 0x00400811  jle 0x4007af
+```
+Then it loops through the array of indices that was created above, and compares each one to an array stored at rbp-0x20.
+```
+       0x00400813  mov dword [rbp-index], 0
+   ,=< 0x0040081a  jmp 0x40083d
+.----> 0x0040081c  mov eax, dword [rbp-index]
+|  |   0x0040081f  cdqe
+|  |   ; the array of indices we stored above
+|  |   0x00400821  mov edx, dword [rbp + rax*4 - 0x40]
+|  |   0x00400825  mov eax, dword [rbp-index]
+|  |   0x00400828  cdqe
+|  |   0x0040082a  mov eax, dword [rbp + rax*4 - 0x20]
+|  |   0x0040082e  cmp edx, eax
+| ,==< 0x00400830  je 0x400839
+| ||   ; if they are equal continue, else return 1
+| ||   0x00400832  mov eax, 1
+|,===< 0x00400837  jmp 0x400848
+||`--> 0x00400839  add dword [rbp-index], 1
+|| `-> 0x0040083d  cmp dword [rbp-index], 5
+`====< 0x00400841  jle 0x40081c
+ |     0x00400843  mov eax, 0
+ `---> 0x00400848  pop rbp
+       0x00400849  ret
 ```
 
-then we call 0x40074d
-... I'll finish this soon
+If we look up the indecise in the array at rbp-0x20 in the linked list we get
+0x00000005 = r
+0x00000002 = o
+0x00000007 = t
+0x00000002 = o
+0x00000005 = r
+0x00000006 = s
+
+the flag is rotors.
+
