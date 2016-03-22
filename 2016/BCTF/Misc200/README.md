@@ -4,7 +4,7 @@ Connecting to the server we give a proof of work, and then we are dropped into a
 No other programs are loaded with it, checking /bin with
 ```
 cd /bin
-echo \*
+echo *
 ```
 we see only bash and a server binary. Checking /home there is a ctf/ directory and inside is flag.ray
 which probably contains the flag, the only problem is reading it. A simple solution would be:
@@ -20,4 +20,4 @@ so starting a new bash after setting it will solve this. In the end I used:
 HISTFILE=/home/ctf/flag.ray /bin/bash
 history
 ```
-and the flag is: BCTF{ipreferzshtoba}
+and the flag is: BCTF{ipreferzshtobash}
