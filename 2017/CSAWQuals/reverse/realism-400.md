@@ -4,15 +4,34 @@ Did you know that x86 is really old? I found a really old Master Boot Record tha
 ```
 qemu-system-i386 -drive format=raw,file=main.bin
 ```
+
+## Setup
 We are given main.bin, and x86 boot sector. Running it in qemu we get a prompt for a flag with 20 blank spaced.
 When 20 characters are type it displays a 'wrong flag' message, and we can see the 'correct flag' string in the
 binary.
 
-First let's take a look at the disassembly with radare2:
+### Static Analysis
+I used radare2 for disassembly
 ```
 r2 -a x86 -b 16 main.bin
 ```
 
+### Dynaic Analysis
+We need a combination of qemu and gdb to debug the boot sector. Startup qemu and use
+`-s -S` to start emulation with paused execution, and to enable debuging on port 1234
+```
+qemu-system-i386 -s -S -drive format=raw,file=main.bin
+```
+
+then attach with gdb
+```
+gdb
+target remote localhost:1234
+set architecture i8086
+b *0x7c8e
+c
+```
+## Reversing
 Most of the code implements the flashing text colors and user input, and I will skip over those.
 If you want learn how input/output is handled in real mode, read about the following instructions
 ```
@@ -36,6 +55,7 @@ so that 0xaaaabbbbccccdddd becomes 0xccccddddbbbbaaaa.
 0000:0086      pshufw mm0, mm0, 0x1e
 ```
 
+### Flag Check Algorithm
 Then it moves the other 16 bytes of input into the xmm0 register, and loads
 16 bytes starting at address 0x7c00 (offset 0 in the binary) into xmm5. It then
 loops through our input 8 times running this check:
@@ -74,23 +94,11 @@ sum =                      08 | 09
 final mm5 = 0x0000000000000008 0000000000000009
 ```
 
-then at 0x00b2 it compares this calcuation with an array in memory. So we have a simple
+At 0x00b2 it compares this calcuation with an array in memory. So we have a simple
 algorithm, a starting condition for mm5, and the end results of each. I just wrote a simple
 python script to solve this using Z3
 
-Run the binary again but have qemu pause execution before starting
-```
-qemu-system-i386 -s -S -drive format=raw,file=main.bin
-```
-then attach with gdb
-```
-gdb
-target remote localhost:1234
-set architecture i8086
-b *0x7c8e
-c
-```
-
+This is the python script I wrote to solve it with z3:
 [solution script](realistic.py)
 
 flag{4r3alz_m0d3_y0}
