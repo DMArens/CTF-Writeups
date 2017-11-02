@@ -6,8 +6,8 @@ qemu-system-i386 -drive format=raw,file=main.bin
 ```
 
 ## Setup
-We are given main.bin, and x86 boot sector. Running it in qemu we get a prompt for a flag with 20 blank spaced.
-When 20 characters are type it displays a 'wrong flag' message, and we can see the 'correct flag' string in the
+We are given main.bin, and x86 boot sector. Running it in qemu we get a prompt for a flag with 20 blank spaces.
+When 20 characters are typed it displays a 'wrong flag' message, and we can see the 'correct flag' string in the
 binary.
 
 ### Static Analysis
@@ -17,7 +17,7 @@ r2 -a x86 -b 16 main.bin
 ```
 
 ### Dynaic Analysis
-We need a combination of qemu and gdb to debug the boot sector. Startup qemu and use
+We need a combination of qemu and gdb to debug the boot sector. Start qemu and use
 `-s -S` to start emulation with paused execution, and to enable debuging on port 1234
 ```
 qemu-system-i386 -s -S -drive format=raw,file=main.bin
@@ -32,7 +32,7 @@ b *0x7c8e
 c
 ```
 ## Reversing
-Most of the code implements the flashing text colors and user input, and I will skip over those.
+Most of the code implements the flashing text colors and user input. I will skip over those.
 If you want learn how input/output is handled in real mode, read about the following instructions
 ```
 int 0x10 ; AH = 0x13
@@ -49,7 +49,7 @@ First, it checks if our input starts with "flag"
 0000:0078      jne 0x14d
 ```
 
-Then it shuffles our input with `pshufw mm0, mm0, 0x1e` This essential rearranges input
+Then it shuffles our input with `pshufw mm0, mm0, 0x1e` This rearranges input
 so that 0xaaaabbbbccccdddd becomes 0xccccddddbbbbaaaa.
 ```
 0000:0086      pshufw mm0, mm0, 0x1e
@@ -96,9 +96,8 @@ final mm5 = 0x0000000000000008 0000000000000009
 
 At 0x00b2 it compares this calcuation with an array in memory. So we have a simple
 algorithm, a starting condition for mm5, and the end results of each. I just wrote a simple
-python script to solve this using Z3
+python script to solve this using Z3.
 
-This is the python script I wrote to solve it with z3:
 [solution script](realistic.py)
 
 flag{4r3alz_m0d3_y0}
